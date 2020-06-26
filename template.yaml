@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Globals:
+  Function:
+    MemorySize: 128
+    Timeout: 15
+
+Resources:
+
+  # S3 Bucket
+  extractFeaturesBucket:
+    Type: AWS::S3::Bucket
+  
+  accessDBBucket:
+    Type: AWS::S3::Bucket
+
+  # Functions
+  ExtractFeaturesLambdaHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/handlers/extractFeatures.handler
+      Description: Function is called when a file is stored in S3.
+      Runtime: nodejs12.x
+      Events:
+        S3Bucket:
+          Type: S3
+          Properties:
+            Bucket: !Ref extractFeaturesBucket
+            Events: 's3:ObjectCreated:*'
+  
+  AccessDBHandler:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: .
+      Handler: src/handlers/accessDBHandler.handler
+      Description: Function is called when a file is stored in S3.
+      Runtime: nodejs12.x
+      Events:
+        S3Bucket:
+          Type: S3
+          Properties:
+            Bucket: !Ref accessDBBucket
+            Events: 's3:ObjectCreated:*'
+
+  # Permissions
+  AllowExtractFeaturesS3ToCallLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref ExtractFeaturesLambdaHandler
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt extractFeaturesBucket.Arn
+
+  AllowAccessDBHandlerS3ToCallLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !Ref AccessDBHandler
+      Principal: s3.amazonaws.com
+      SourceArn: !GetAtt accessDBBucket.Arn
+
